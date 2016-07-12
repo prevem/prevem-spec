@@ -99,27 +99,11 @@ behavior of the job manager:
 The CLI commands make it easier to write, use, and test the system.  They provide a way to ensure that the interfaces are complete
 and help with onboarding new developers and administrators.
 
-### batch:create
+### 1. renderer:poll
 
-The first CLI tool, `batch:create`, is a simple email composer -- it submits a `PreviewBatch`, waits for the response, and downloads the
-images.  This is useful for manually testing a renderer.
-
-```
-./app/console batch:create --subject 'Hello world' --text "Hello world" --render thunderlook,iphone --url 'http://user:pass@localhost:9000/' --out '/tmp/rendered/'
-```
-
-This command should basically follow the steps from "Examples: Composer requests a preview" in [protocol.md](protocol.md), .i.e.
-
- * Generate a `{batch}` name like `prevem-cli-{uniqid}`
- * `PUT /PreviewBatch/{user}/{batch}`
- * while not done ; do echo "Processing..." ; sleep 1 ; GET /PreviewBatch/{user}/{batch}/tasks
- * Dump files to `/tmp/rendered`
-
-### renderer:poll
-
-The second CLI tool, `renderer:poll`, makes it easier to write a new renderer.  A renderer must poll an HTTP resource, then perform some
+The first CLI tool, `renderer:poll`, makes it easier to write a new renderer.  A renderer must poll an HTTP resource, then perform some
 custom rendering logic, and then post another HTTP resource.  This tool lets you write a quick-and-dirty renderer without boilerplate
-code for HTTP. To use it, first create a dummy rendering script like:
+code for HTTP. To use it, create a dummy rendering script like:
 
 ```php
 #!/usr/bin/env php
@@ -127,7 +111,7 @@ code for HTTP. To use it, first create a dummy rendering script like:
 $job = json_decode(file_get_contents('php://stdin'),1);
 echo json_encode(array(
   'id' => $job['PreviewTask']['id'],
-  'image' => base64_encode(file_get_contents('/tmp/dummy-image.png')),
+  'image' => base64_encode(file_get_contents('/tmp/rick-astley.png')),
 ));
 ```
 
@@ -143,7 +127,24 @@ This command should basically follow the steps from "Example: Renderer prepares 
  * Poll `POST /PreviewTask/claim`.
  * Whenever there's a new job, execute `examples/dummy-render.php` and pipe in the job data. Take the output and `POST` it back to `/PreviewTask/submit`. (Be careful to check for erroneous output and report it back.)
 
-### batch:prune
+
+### 2. batch:create
+
+The second CLI tool, `batch:create`, is a simple email composer -- it submits a `PreviewBatch`, waits for the response, and downloads the
+images.  This is useful for manually testing a renderer.
+
+```
+./app/console batch:create --subject 'Hello world' --text "Hello world" --render thunderlook,iphone --url 'http://user:pass@localhost:9000/' --out '/tmp/rendered/'
+```
+
+This command should basically follow the steps from "Examples: Composer requests a preview" in [protocol.md](protocol.md), .i.e.
+
+ * Generate a `{batch}` name like `prevem-cli-{uniqid}`
+ * `PUT /PreviewBatch/{user}/{batch}`
+ * while not done ; do echo "Processing..." ; sleep 1 ; GET /PreviewBatch/{user}/{batch}/tasks
+ * Dump files to `/tmp/rendered`
+
+### 3. batch:prune
 
 Over time, we may accumulate a lot of previews, and we may want to delete old ones. For example, to delete anything older than two weeks:
 
@@ -154,9 +155,10 @@ Over time, we may accumulate a lot of previews, and we may want to delete old on
 This evaluates `strotime('14 days ago')` and finds any `PreviewBatch` / `PreviewTask` which is older -- then deletes
 any DB records or files produced by it.
 
+
 # Projects
 
-### 1: Create job manager
+### 1. Create job manager
 
 > Tip: Symfony has conventional ways to implement HTTP routes, controllers, and tests. Use them!
 
@@ -183,7 +185,7 @@ any DB records or files produced by it.
      * The script should download prevem+dependencies and setup the DB+vhost.  There's are examples of using `civibuild` to setup a
        Symfony app in `app/config/messages` and `app/config/docs`.
  
-### 2: Create CLI tools
+### 2. Create CLI tools
 
 > Tip: Symfony has conventional ways to implement CLI commands. Use them!
 > An example: [DocsPublishCommand.php](https://github.com/civicrm/civicrm-docs/blob/master/src/AppBundle/Command/DocsPublishCommand.php)
@@ -193,21 +195,21 @@ any DB records or files produced by it.
  * Implement command `batch:prune` (per [refimpl.md](refimpl.md))
  * Implement an integration test which runs `batch:create` and `renderer:poll`
 
-### 3: Update CiviMail UI
+### 3. Update CiviMail UI
 
 (TODO: This section can be fleshed out more.)
 
  * Implement CiviMail composer
      * Update/finish [PR 6564](https://github.com/civicrm/civicrm-core/pull/6564). The dataflows should be pretty close, although you may need to tweak the REST calls.
 
-### 4: Create real services
+### 4. Create real services
 
 (TODO: This section can be fleshed out more.)
 
- * Implement delegated renderer that works our preferred commercial service. Build on the `renderer:poll` command.
+ * Implement delegated renderer that works with our preferred commercial service. Build on the `renderer:poll` command.
  * Maybe: Update/slim down [webmail-renderer](https://github.com/utkarshsharma/webmail-renderer). It can build on the `renderer:poll` command.
 
-### 5: Deploy
+### 5. Deploy
 
 (TODO: This section can be fleshed out more.)
 

@@ -1,6 +1,7 @@
-# Prevem: Open source preview manager for emails (v2)
+# Overview
 
-Prevem is a batch manager for email previews based on a RESTful CRUD API.
+Prevem is an open protocol and batch manager for email previews based on a RESTful CRUD API.
+This document describes the second revision of the protocol.
 
  * *Composer* - A mail user-agent (MUA) in which a user composes a mailing.
    Generally, the composer submits a `PreviewBatch` and polls to track its progress.
@@ -32,14 +33,14 @@ Most of these entities are mapped to RESTful end-points, i.e.:
  * `POST /PreviewTask/submit`: Submit the results after rendering an `EmailMessage`.
  * `POST /User/login`: Accepts a username and password; produces an authentication token.
 
-# 1. Examples
+# Examples
 
 In these examples, we consider the HTTP traffic in some use-cases.  The examples involve a user Alice who is composing
 a newsletter.  She connects to prevem instance (`https://alice:secret@example.org/prevem`) to request a preview.  We
 also have a renderer for the email application Thunderlook (which connects to the same instance using different
 credentials, `https://thunderlook:secret@example.org/prevem`).
 
-### Composer requests a preview
+### 1. Composer requests a preview
 
 Alice begins by creating a new PreviewBatch. She assigns a name to her batch, `newsletter-1234`.
 
@@ -105,7 +106,7 @@ Each task record includes the fields:
           * otherwise, `pending`
  * `imageUrl` is an optional string which references the screenshot.
 
-### Renderer prepares a preview
+### 2. Renderer prepares a preview
 
 The Thunderlook renderer begins by trying to claim a task:
 
@@ -180,7 +181,7 @@ HTTP/1.1 200 OK
 If Thunderlook encounteres an error 
 
 
-### Authenticating via token
+### 3. Authenticating via token
 
 The previous examples use HTTP Basic authentication
 If you're writing a client-side application which interacts with `prevem`, you may not want to trust the client with
@@ -212,16 +213,16 @@ Authorization: Bearer abcd1234abcd1234
 Note: In this example, the bearer token is only 16 characters.  However, do not hard-code a limit of 16 characters.  If
 you must a choose limit, use something higher -- like 255 characters.
 
-# 2. Entities
+# Entities
 
-### PreviewBatch
+### 1. PreviewBatch
 
  * `user` (`string`, required) - The user who owns this batch. (ex: `savethedolphins`)
  * `batch` (`string`, required) - A unique name for this batch. (ex: `newsletter-draft-123`)
  * `message` (`object`, required) - An EmailMessage object.
  * `tasks` (`array`, optional) - A list of PreviewTask objects.
 
-### PreviewTask
+### 2. PreviewTask
 
  * `id` (`scalar`, required) - A unique ID for this task.
  * `user` (`string`, required) - The user who owns this task.
@@ -236,7 +237,7 @@ you must a choose limit, use something higher -- like 255 characters.
  * `status` (`string`, required) - The current status of this task (`pending`, `rendering`, `finished`, or `failed`).
  * (Varies) `image` (`string`, base64) or `imageUrl` (`string`) - The image produced by this task. Note that certain endpoints may specifically require `image` or `imageUrl`.
 
-### Renderer
+### 3. Renderer
 
  * `renderer` (`string`, required) - A unique symbolic name. (ex: `winxp-thunderlook-9.1`)
  * `title` (`string`, required) - A displayable title. (ex: `Thunderlook 9.1 (Windows XP)`)
@@ -248,7 +249,7 @@ you must a choose limit, use something higher -- like 255 characters.
  * `options` (`array`, optional) - An open-ended list of rendering options supported by this renderer. (ex: `['window-width','window-height']`).
  * `lastSeen` (`timestamp`, optional) - The last time we last had communication with this renderer.
 
-## EmailMessage
+### 4. EmailMessage
 
 The email message may be specified in any of these three formats:
 
@@ -259,13 +260,13 @@ The email message may be specified in any of these three formats:
 DRYest approach is probably to have the job-manager handle conversions. We may want to enhance this part of the
 spec to better support RFC (2)822 representations.*
 
-# 3. Routes
+# Routes
 
 The remainder of this specification examines the inputs and outputs expected for each RESTful endpoint.
 
 In discussing each endpoint, we include some notes on how the Symfony reference-implementation may work.
 
-### Baseline
+### 0. Baseline
 
 The protocol is generally RESTful. All end-points should meet some common criteria:
 
@@ -274,7 +275,7 @@ The protocol is generally RESTful. All end-points should meet some common criter
  * All timestamps in the JSON payload are encoded as seconds-since-epoch (UTC).
  * All end-points require authentication. The client may submit credentials as *either* HTTP `Basic` (username/password) or `Bearer` (token).
 
-### GET /Renderers
+### 1. GET /Renderers
 
  * _Route_: `GET /Renderers`
  * _Purpose_: Return a list of active renderers.
@@ -285,7 +286,7 @@ The protocol is generally RESTful. All end-points should meet some common criter
     * Require `ROLE_COMPOSE`.
     * `SELECT * FROM Renderers WHERE lastSeen >= NOW()-{render_agent_ttl}`
 
-### PUT /Renderer/{rendername}
+### 2. PUT /Renderer/{rendername}
 
  * _Route_: `PUT /Renderer/{rendername}`
  * _Purpose_: Create or update a renderer.
@@ -295,7 +296,7 @@ The protocol is generally RESTful. All end-points should meet some common criter
     * Require `ROLE_RENDER`.
     * `INSERT` or `UPDATE` a row in `Renderer`, matching on the `rendername`
 
-### PUT /PreviewBatch/{username}/{batch}
+### 3. PUT /PreviewBatch/{username}/{batch}
 
  * _Route_: `PUT /PreviewBatch/{username}/{batch}`
  * _Purpose_:  Create a new batch.
@@ -307,7 +308,7 @@ The protocol is generally RESTful. All end-points should meet some common criter
      * INSERT a row in `PreviewBatch` with the given `user`, `batch`, `message`. (Note: Duplicate is an error.)
      * For each item in `tasks`, INSERT a row in `PreviewTask`. Be sure to set `user`, `batch`, `renderer`, `options`, `createTime`.
 
-### GET /PreviewBatch/{username}/{batch}
+### 4. GET /PreviewBatch/{username}/{batch}
 
  * _Route_: `GET /PreviewBatch/{username}/{batch}`
  * _Purpose_: Read the definition of a batch and all its tasks. 
@@ -319,7 +320,7 @@ The protocol is generally RESTful. All end-points should meet some common criter
      * Verify that `{username}` matches the user credentials
      * `SELECT * FROM PreviewBatch WHERE user = {username} AND batch = {batch}`
 
-### GET /PreviewBatch/{username}/{batch}/tasks
+### 5. GET /PreviewBatch/{username}/{batch}/tasks
 
  * _Route_: `GET /PreviewBatch/{username}/{batch}/tasks`
  * _Purpose_: Read the status of the batch and all its tasks.
@@ -333,7 +334,7 @@ The protocol is generally RESTful. All end-points should meet some common criter
      * In each `PreviewTask`, add field `status`. (Defined later.)
      * In each `PreviewTask` with status `finished`, add field `imageUrl`. This is an absolute URL to file `web/files/{user}/{batch}/{md5(id . user . batch . renderer . options . createTime)}.png`
 
-### POST /PreviewTask/claim
+### 6. POST /PreviewTask/claim
 
  * _Route_: `POST /PreviewTask/claim`
  * _Purpose_: Fetch the next task for a renderer.
@@ -350,7 +351,7 @@ The protocol is generally RESTful. All end-points should meet some common criter
      * If a `PreviewTask` is found, then update the `attempts` and `claimTime`.
      * If a `PreviewTask` is found, then also fetch the related `PreviewBatch`.
 
-### POST /PreviewTask/submit
+### 7. POST /PreviewTask/submit
 
  * _Route_: `POST /PreviewTask/submit`
  * _Purpose_: Submit the results after rendering an `EmailMessage`.
@@ -366,7 +367,7 @@ The protocol is generally RESTful. All end-points should meet some common criter
      * If `errorMessage` is provided and `PreviewTask.attempts < render_attempts`, then set `PreviewTask.claimTime` to empty.
      * If `errorMessage` is provided and `PreviewTask.attempts >= render_attempts`, then set `PreviewTask.finishTime` to now.
 
-### POST /User/login
+### 8. POST /User/login
 
  * _Route_: `POST /User/login`
  * _Purpose_: Accepts a username and password; produces an authentication token.
