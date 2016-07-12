@@ -1,0 +1,5 @@
+site_name: Prevem v2
+pages:
+ - Protocol: protocol.md
+ - RefImpl: refimpl.md
+ - Quickstart: quickstart.md
