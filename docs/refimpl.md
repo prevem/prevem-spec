@@ -39,6 +39,12 @@ Several entities should be stored in a database using Doctrine.
     * `icons TEXT` - A JSON-encoded object. (ex: `{'16x16': 'http://example.com/thunderlook-16x16.png'}`)
     * `options TEXT` - A JSON-encoded list of options supported by this renderer. (ex: `['window-width','window-height']`)
     * `lastSeen TIMESTAMP` - The last time we last had communication with this renderer.
+ * `User`
+    * `PRIMARY KEY(user)`
+    * `user VARCHAR(63) NOT NULL` - The username (ex: `alice` or `thunderlook`)
+    * `password VARCHAR(63) NOT NULL` - A hashed or digested password.
+    * `is_active TINYINT(1) UNSIGNED NOT NULL` - A boolean indicating whether the account is currently active.
+    * `roles TEXT` - A JSON-encoded array. (ex: `['renderer']`)
 
 # Files
 
@@ -61,8 +67,8 @@ $imageFile = "web/files/" . $user . "/" . $batch . "/" . $hash . ".png"
 # Security
 
 The `User`, `Role`, and `Password` concepts are provided by the [Symfony Security](http://symfony.com/doc/current/book/security.html)
-layer.  Users *may* be defined in a database -- or they may be defined by a config file or a dynamic service.  For our purposes, a `user`
-may be a person, a bot, or an entire organization.  Users have a simple name, a password, and a list of roles.
+layer.  Users are defined in the database.  For our purposes, a `user` may be a person, a bot, or an entire organization.  Users have a simple name, a password,
+an activation flag, and a list of roles.
 
 *Note*: We do not formally model organizations or domains with multiple people who collaborate on newsletters, but this is an important
 use-case, and the specification includes functionality to support this use-case.  The organization would have one user-account and one
@@ -133,7 +139,7 @@ This command should basically follow the steps from "Example: Renderer prepares 
 The second CLI tool, `batch:create`, is a simple email composer -- it submits a `PreviewBatch`, waits for the response, and downloads the
 images.  This is useful for manually testing a renderer.
 
-```
+```bash
 ./app/console batch:create --subject 'Hello world' --text "Hello world" --render thunderlook,iphone --url 'http://user:pass@localhost:9000/' --out '/tmp/rendered/'
 ```
 
@@ -148,13 +154,47 @@ This command should basically follow the steps from "Examples: Composer requests
 
 Over time, we may accumulate a lot of previews, and we may want to delete old ones. For example, to delete anything older than two weeks:
 
-```
+```bash
 ./app/console: batch:prune '14 days ago'
 ```
 
 This evaluates `strotime('14 days ago')` and finds any `PreviewBatch` / `PreviewTask` which is older -- then deletes
 any DB records or files produced by it.
 
+## 4. user:create
+
+Whenever we wish to register a new user account (for a composer or a renderer), we'll need to add a record to the database.
+When setting up a new installation, one might typically create two users:
+
+```bash
+## Create a composer
+## INSERT INTO User (user,password,roles) VALUES ('alice',MD5('s3rc3t'),'[\'compose\']')
+./app/console user:create alice --pass=s3cr3t --role=compose
+
+## Creaet a renderer
+## INSERT INTO User (user,password,roles) VALUES ('thunderlook',MD5('s3rc3t'),'[\'renderer\']')
+./app/console user:create thunderlook --pass=s3cr3t --role=renderer
+
+## Grant multiple orles
+## INSERT INTO User (user,password,roles) VALUES ('omniscient',MD5('s3rc3t'),'[\'renderer\',\'compose\']')
+./app/console user:create omniscient --pass=s3cr3t --role=renderer,compose
+```
+
+## 5. user:update
+
+To change permissions or a change password, we'll need to update an account:
+
+```bash
+## Revoke roles
+## UPDATE User SET role = '[]' WHERE user 'alice'
+./app/console user:create alice --role=''
+
+## Change password
+## UPDATE User SET password = md5('n3ws3cr3t') WHERE user = 'alice'
+./app/console user:create alice --pass=n3ws3cr3t
+```
+
+These commands will INSERT or UPDATE a record in the database.
 
 # Projects
 
