@@ -43,7 +43,6 @@ Several entities should be stored in a database using Doctrine.
     * `PRIMARY KEY(user)`
     * `user VARCHAR(63) NOT NULL` - The username (ex: `alice` or `thunderlook`)
     * `password VARCHAR(63) NOT NULL` - A hashed or digested password.
-    * `is_active TINYINT(1) UNSIGNED NOT NULL` - A boolean indicating whether the account is currently active.
     * `roles TEXT` - A JSON-encoded array. (ex: `['renderer']`)
 
 # Files
@@ -68,7 +67,7 @@ $imageFile = "web/files/" . $user . "/" . $batch . "/" . $hash . ".png"
 
 The `User`, `Role`, and `Password` concepts are provided by the [Symfony Security](http://symfony.com/doc/current/book/security.html)
 layer.  Users are defined in the database.  For our purposes, a `user` may be a person, a bot, or an entire organization.  Users have a simple name, a password,
-an activation flag, and a list of roles.
+and a list of roles.
 
 *Note*: We do not formally model organizations or domains with multiple people who collaborate on newsletters, but this is an important
 use-case, and the specification includes functionality to support this use-case.  The organization would have one user-account and one
